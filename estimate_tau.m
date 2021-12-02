@@ -1,6 +1,6 @@
-function [tau, crlb] = estimate_tau(A, tau, sigma, T, varargin)
-    Ts = 10;
-    T_total = T + tau;
+function [tau, crlb, y, signal_raw] = estimate_tau(A, tau, sigma, T, varargin)
+    Ts = 5;
+    T_total = T;
     delta = 0.1; % sampling resolution
     t = 0:delta:Ts; % sampling time 
     a = 1; % amplitude of the generated signal
@@ -15,7 +15,8 @@ function [tau, crlb] = estimate_tau(A, tau, sigma, T, varargin)
                 case 'DELTA'
                     delta = varargin{i+1};
                 case 'SIGNAL_TYPE'
-                    signal_type = varargin{i+1};
+                    varargin{i+1};
+                    SIGNAL_TYPE = varargin{i+1};
                 otherwise
                     % Hmmm, something wrong with the parameter string
                     error(['Unrecognized option: ''' varargin{i} '''']);
@@ -24,12 +25,14 @@ function [tau, crlb] = estimate_tau(A, tau, sigma, T, varargin)
     end;
 
 
-    if SIGNAL_TYPE == 'trapezoid'
+    if isequal(SIGNAL_TYPE, 'trapezoid')
         signal = trapezoid(tau, delta, t, Ts, a, T);
+        signal_raw = trapezoid(0, delta, t, Ts, a, T);
         crlb_mat = CRLB_trapezoid(a, Ts, A, sigma);
         crlb = crlb_mat(1,1);
-    elseif SIGNAL_TYPE == 'sine'
+    elseif isequal(SIGNAL_TYPE, 'sine')
         signal = sine(tau, delta, t, Ts, a, T);
+        signal_raw = sine(0, delta, t, Ts, a, T);
         crlb_mat = CRLB_sine(a, Ts, A, sigma);
         crlb = crlb_mat(1,1);    
     end
@@ -39,7 +42,7 @@ function [tau, crlb] = estimate_tau(A, tau, sigma, T, varargin)
     
     gridsize = 0.1*sqrt(crlb);
     tau_grid = 0:gridsize:10;
-    % tau_grid[2:end] = tau_grid[2:end] + 1*crlb* 
+    tau_grid(2:end) = tau_grid(2:end) + (rand(1,length(tau_grid)-1) - 0.5)*gridsize;
     obj_list = zeros(1, length(tau_grid));
 
     for i=1:length(tau_grid)
@@ -67,7 +70,7 @@ function signal = sine(tau, delta, t, Ts, a, T)
 end
 
 function signal = trapezoid(tau, delta, t, Ts, a, T)
-    signal = cat(2, 0:delta:a, a*ones(1,Ts-2*a), a:-delta:0);
+    signal = cat(2, 0:delta:a, a*ones(1,floor((Ts-2*a)/delta)), a:-delta:0);
     padding_start = zeros(1, floor(tau/delta));
     signal = cat(2, padding_start, signal);    
 end
